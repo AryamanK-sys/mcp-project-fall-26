@@ -73,8 +73,11 @@ def get_email(id: int) -> Email:
     #         ToolError(f"No email found for ID {id}.")
     #         Use that exact message; the tests check it.
     # Hint 3: otherwise, return the email.
-    raise NotImplementedError("TODO 2: fill in get_email in server.py")
-
+    email = store.get(id)
+    
+    if email is None:
+        raise ToolError(f"No email found for ID {id}.")
+    return email
 
 if __name__ == "__main__":
     # stdout (standard output) carries MCP messages. Send diagnostic logs to
