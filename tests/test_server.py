@@ -1,5 +1,11 @@
-"""Step 2: the email tools over a real stdio connection."""
+"""Step 2: the email tools over a real stdio connection.
 
+The helpers here are shared with the later steps' tests.
+"""
+
+import os
+import sqlite3
+import subprocess
 import sys
 import unittest
 from tempfile import TemporaryDirectory
@@ -7,20 +13,56 @@ from tempfile import TemporaryDirectory
 from mcp import Client, StdioServerParameters
 from mcp.types import TextContent
 
+# Importing email_mcp.server opens a store, which reads EMAIL_MCP_* settings.
+# Remove any left in this terminal from running the server, so the tests
+# always import the default list store. Each test server gets its own
+# settings below.
+for key in [key for key in os.environ if key.startswith("EMAIL_MCP_")]:
+    del os.environ[key]
+
+# These imports come after the cleanup on purpose.
 from email_mcp.server import get_email
+from email_mcp.stores.list_store import ListStore
+from email_mcp.stores.redacting_store import RedactingStore, redact
+from email_mcp.stores.sqlite_store import SCHEMA, EmailStore
 
 
-def todo_2_done():
-    """Whether get_email has been filled in.
-
-    Called directly, not over MCP: the SDK hides an unexpected error's text
-    from clients, so over MCP an unfinished TODO looks like any other crash.
-    """
+# Each TODO is checked by calling it directly, not over MCP: the SDK hides an
+# unexpected error's text from clients, so over MCP an unfinished TODO looks
+# like any other crash.
+def finished(function, *arguments):
+    """Whether calling function runs past its NotImplementedError placeholder."""
     try:
-        get_email(1)
+        function(*arguments)
     except NotImplementedError:
         return False
     return True
+
+
+def empty_database():
+    """An in-memory database with the step 3 tables and no emails."""
+    connection = sqlite3.connect(":memory:")
+    connection.executescript(SCHEMA)
+    return connection
+
+
+# TODO number -> (where to finish it, whether it is finished).
+TODOS = {
+    2: ("fill in get_email in src/email_mcp/server.py",
+        lambda: finished(get_email, 1)),
+    3: ("fill in EmailStore.get in src/email_mcp/stores/sqlite_store.py",
+        lambda: finished(EmailStore(empty_database(), "").get, 1)),
+    4: ("fill in redact and RedactingStore.get in src/email_mcp/stores/redacting_store.py",
+        lambda: finished(redact, "") and finished(RedactingStore(ListStore()).get, 1)),
+}
+
+
+def require_todos(test, numbers):
+    """Fail test with one line naming the first unfinished TODO in numbers."""
+    for number in numbers:
+        where, is_finished = TODOS[number]
+        if not is_finished():
+            test.fail(f"TODO {number} not done yet: {where}")
 
 
 def error_text(result):
@@ -62,21 +104,29 @@ class ListModeTests(unittest.IsolatedAsyncioTestCase):
             "body": "The dataset link is ready. Ask me before sharing it outside the club.",
         },
     ]
-    # Each search is (query, the ids it should find in any order).
-    searches = [("friday", {1, 2}), ("nothing-here", set())]
+    # Each search is (query, the ids it should find in any order). The last
+    # query has punctuation, which SQLite's full-text search rejects unless the
+    # store retries with each word quoted.
+    searches = [("friday", {1, 2}), ("nothing-here", set()), ("dataset-link:", {3})]
     missing_id = 999
+    # EMAIL_MCP_* settings for the server; none means the default list store.
+    environment = {}
+    # The TODOs this data needs; each test fails until they are done.
+    todos = (2,)
 
     def setUp(self):
-        if not todo_2_done():
-            self.fail("TODO 2 not done yet: fill in get_email in src/email_mcp/server.py")
+        require_todos(self, self.todos)
         self.directory = TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         # Launch the server the way a host does, from a folder outside the
-        # repository, to prove the installed module works anywhere.
+        # repository, to prove the installed module works anywhere. The SDK
+        # adds env to a minimal environment, so settings in your terminal
+        # do not reach the server.
         self.server = StdioServerParameters(
             command=sys.executable,
             args=["-m", "email_mcp.server"],
             cwd=self.directory.name,
+            env=self.environment,
         )
 
     async def test_tool_discovery(self):
@@ -129,3 +179,41 @@ class ListModeTests(unittest.IsolatedAsyncioTestCase):
             valid = await client.call_tool("get_email", {"id": first["id"]})
             self.assertEqual(valid.structured_content, first)
 
+
+
+def server_environment(settings):
+    """This process's environment without EMAIL_MCP_* settings, plus settings."""
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("EMAIL_MCP_")
+    }
+    return environment | settings
+
+
+def run_server(settings, directory):
+    """Start the stdio server with settings and return once it exits."""
+    return subprocess.run(
+        [sys.executable, "-m", "email_mcp.server"],
+        cwd=directory,
+        env=server_environment(settings),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+class StartupFailureTests(unittest.TestCase):
+    """Steps 3 and 5: a bad setting must stop the server, not fall back."""
+
+    def test_unknown_values_stop_startup(self):
+        with TemporaryDirectory() as directory:
+            for name, value in [
+                ("EMAIL_MCP_DATA", "enorn"),
+                ("EMAIL_MCP_DATA", "mock"),
+                ("EMAIL_MCP_REDACT", "yes"),
+            ]:
+                with self.subTest(name=name, value=value):
+                    process = run_server({name: value}, directory)
+                    self.assertNotEqual(process.returncode, 0)
+                    self.assertIn("ConfigurationError", process.stderr)
+                    self.assertIn(name, process.stderr)

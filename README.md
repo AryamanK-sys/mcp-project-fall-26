@@ -11,6 +11,9 @@ connecting it to Claude on the web.
 |------|------|----------------|-------|
 | 1 | 1 | A first MCP server with one tool | [Step 1: your first MCP server](docs/week1/step1-first-server.md) |
 | 2 | 1 | An email server with two tools that work together | [Step 2: email tools](docs/week1/step2-email-tools.md) |
+| 3 | 2 | The same emails in a SQLite database, searched with SQL | [Step 3: emails in SQLite](docs/week2/step3-sqlite.md) |
+| 4 | 2 | 1,000 real emails from the Enron dataset | [Step 4: real emails from Enron](docs/week2/step4-enron.md) |
+| 5 | 2 | Hiding phone numbers and email addresses | [Step 5: hide personal details](docs/week2/step5-redaction.md) |
 
 New steps are added to this repository as the weeks go on.
 [Save your work and get new weeks](#save-your-work-and-get-new-weeks) shows
@@ -105,10 +108,11 @@ Windows (PowerShell):
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Until you fill in the TODOs in steps 1 and 2, the tests for those steps fail
-with a message naming the TODO to finish; the other tests pass. Once both
-TODOs are done, all tests should pass. Error lines printed while they run come
-from calls that are meant to fail.
+Until you fill in a step's TODOs, the tests that need them fail with a
+message naming the TODO to finish; the other tests pass. Once every TODO so
+far is done, all tests should pass. The test that reads the real Enron
+database is skipped until you download it in step 4. Error lines printed
+while they run come from calls that are meant to fail.
 
 ## Save your work and get new weeks
 
@@ -120,9 +124,9 @@ git push
 ```
 
 `git commit -am` saves every file you changed that Git already tracks, with
-the message in quotes. Git ignores `.env`, `.venv` and `.local/`, so your
-token and downloads are never saved. `git push` copies your commits to your
-fork on GitHub.
+the message in quotes. Git ignores `.env`, `.venv`, `.local/` and the
+files in `data/` other than `mock_emails.db` and `README.md`, so your
+token, downloads and the Enron database are never saved. `git push` copies your commits to your fork on GitHub.
 
 The first time you push, Git asks you to sign in to GitHub; your GitHub
 password does not work here. On Windows, Git for Windows opens a browser
@@ -160,10 +164,18 @@ src/email_mcp/
   hello_server.py   Step 1: an MCP server with one count_letter tool
   server.py         Step 2: the email server and its two tools
   stores/
+    __init__.py     Chooses the store from EMAIL_MCP_DATA and EMAIL_MCP_REDACT
     list_store.py   Step 2: three made-up emails in a Python list
+    sqlite_store.py Step 3: the same emails in SQLite, searched with SQL
+    enron_store.py  Step 4: the Enron database file, opened read-only
+    redacting_store.py  Step 5: hides phone numbers and email addresses
+data/
+  mock_emails.db    Step 3: the three mock emails as a SQLite database
+  README.md         The Enron database: where to get it, its tables
 tests/              Tests that start each server and call its tools
 scripts/
   setup_ngrok.py    Sets up ngrok so Claude on the web can reach your server
 docs/week1/         Week 1 guides: steps 1 and 2, ngrok setup, screenshots
+docs/week2/         Week 2 guides: steps 3, 4 and 5
 pyproject.toml      The project's name and the packages it needs
 ```

@@ -6,7 +6,7 @@ from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
-from email_mcp.stores.list_store import ListStore
+from email_mcp.stores import open_store
 
 MAX_SEARCH_LIMIT = 10
 
@@ -34,8 +34,10 @@ class Email(TypedDict):
     body: str
 
 
-# The store holds the emails; the tools below ask it for them.
-store = ListStore()
+# The store holds the emails; the tools below ask it for them. Opening it
+# here makes a bad EMAIL_MCP_DATA setting stop the server at startup,
+# before any client connects.
+store = open_store()
 
 mcp = MCPServer("email", instructions=f"Serves {store.description}.")
 
