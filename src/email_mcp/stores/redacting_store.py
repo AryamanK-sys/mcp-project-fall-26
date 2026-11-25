@@ -28,7 +28,9 @@ def redact(text):
     # Hint: EMAIL_ADDRESS.sub("[email]", text) returns a copy of text with
     #       every email address replaced by [email]. Do the same with
     #       PHONE_NUMBER, then return the result.
-    raise NotImplementedError("TODO 4: fill in redact in redacting_store.py")
+    text = EMAIL_ADDRESS.sub("[email]", text)
+    text = PHONE_NUMBER.sub("[phone]", text)
+    return text
 
 
 class RedactingStore:
@@ -57,4 +59,12 @@ class RedactingStore:
         #         no email has that id. Return None in that case.
         # Hint 2: copy the email with dict(...) before changing it, then
         #         pass its subject and body through redact().
-        raise NotImplementedError("TODO 4: fill in RedactingStore.get in redacting_store.py")
+        email = self._store.get(email_id)
+        
+        if email is None:
+            return None
+        
+        copy_email = dict(email)
+        copy_email["subject"] = redact(copy_email["subject"])
+        copy_email["body"] = redact(copy_email["body"])
+        return copy_email
