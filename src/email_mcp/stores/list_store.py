@@ -39,7 +39,7 @@ MOCK_EMAILS = [
         "to": ["alice@example.com", "bob@example.com", "carol@example.com"],
         "cc": [],
         "subject": "AI Club Project Meeting",
-        "body": "Is the MCP Project meeting this Friday? I should be able to finish the rest of my pending tasks by then.",
+        "body": "Is the MCP Project meeting at the end of this week? I should be able to finish the rest of my pending tasks by then.",
     },
 ]
 
